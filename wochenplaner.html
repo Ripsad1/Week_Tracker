@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wochenplaner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0F1117;
+  --surface:   #181C26;
+  --surface2:  #1E2330;
+  --border:    #2A3042;
+  --border2:   #374054;
+  --text:      #E8EAF0;
+  --text2:     #8A91A8;
+  --text3:     #4A5168;
+  --accent:    #7C9EFF;
+  --accent2:   #3D5CE8;
+  --gold:      #F0C060;
+  --green:     #5DBBAA;
+  --red:       #E87070;
+
+  /* Category colors */
+  --c-topo:    #8B6FE8;
+  --c-alg:     #5D9EE8;
+  --c-combi:   #E8A05D;
+  --c-jp:      #E8705D;
+  --c-solo:    #5DBB8E;
+  --c-med:     #BB8E5D;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* ── Views ── */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── PLANNING VIEW ── */
+#plan-view {
+  display: none;
+  min-height: 100vh;
+}
+#plan-view.active { display: flex; flex-direction: column; }
+
+.plan-header {
+  padding: 32px 40px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: var(--surface);
+}
+
+.plan-title-block {}
+.plan-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.plan-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 2rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.plan-week-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+.plan-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 9px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-primary {
+  background: var(--accent2);
+  color: white;
+}
+.btn-primary:hover { background: var(--accent); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border2);
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--text2); }
+
+/* Planning body */
+.plan-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Task pool */
+.task-pool {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+.pool-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pool-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pool-list::-webkit-scrollbar { width: 4px; }
+.pool-list::-webkit-scrollbar-track { background: transparent; }
+.pool-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.task-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  user-select: none;
+  border: 1px solid transparent;
+}
+
+.task-chip:hover { background: var(--surface2); border-color: var(--border); }
+.task-chip.selected { background: var(--surface2); border-color: var(--accent2); }
+
+.chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chip-name {
+  font-size: 0.82rem;
+  color: var(--text);
+  flex: 1;
+}
+
+.chip-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text3);
+}
+
+/* Day columns */
+.days-scroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  min-height: 100%;
+}
+
+.day-col {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.day-header {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.day-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.day-date {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.5rem;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.day-header.today .day-date { color: var(--accent); }
+.day-header.today .day-name { color: var(--accent); }
+
+.day-total {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text3);
+  margin-top: 4px;
+}
+
+.day-tasks {
+  flex: 1;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 200px;
+}
+
+/* Assigned task card */
+.assigned-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  position: relative;
+  animation: slideIn 0.15s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.assigned-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.card-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.card-name {
+  font-size: 0.78rem;
+  color: var(--text);
+  flex: 1;
+  font-weight: 500;
+}
+
+.card-remove {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.12s;
+  opacity: 0;
+}
+
+.assigned-card:hover .card-remove { opacity: 1; }
+.card-remove:hover { color: var(--red); }
+
+.card-time-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.time-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text3);
+  white-space: nowrap;
+}
+
+.time-sel {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--text2);
+  padding: 2px 6px;
+  cursor: pointer;
+  outline: none;
+  flex: 1;
+  transition: border-color 0.12s;
+}
+
+.time-sel:focus { border-color: var(--accent2); color: var(--text); }
+.time-sel option { background: var(--surface); }
+
+/* Drop zone hint */
+.drop-hint {
+  border: 1px dashed var(--border2);
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text3);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.drop-hint:hover { border-color: var(--accent2); color: var(--accent); }
+
+/* ── WEEK VIEW ── */
+#week-view {
+  display: none;
+  min-height: 100vh;
+}
+#week-view.active { display: flex; flex-direction: column; }
+
+.week-header {
+  padding: 28px 40px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.week-header-left {}
+
+.week-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 4px;
+}
+
+.week-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.8rem;
+  color: var(--text);
+}
+
+.week-subtitle {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.week-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.wstat {
+  text-align: right;
+}
+
+.wstat-val {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.4rem;
+  color: var(--text);
+}
+
+.wstat-val.accent { color: var(--accent); }
+.wstat-lbl {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Week body: day columns with tasks */
+.week-body {
+  flex: 1;
+  overflow-x: auto;
+  padding: 24px 40px 40px;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(180px, 1fr));
+  gap: 12px;
+  min-width: 900px;
+}
+
+.wday-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wday-header {
+  padding: 10px 14px;
+  border-radius: 8px 8px 0 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+}
+
+.wday-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.wday-date {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.3rem;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.wday-col.today .wday-header { background: rgba(124, 158, 255, 0.08); border-color: var(--accent2); }
+.wday-col.today .wday-date { color: var(--accent); }
+.wday-col.today .wday-name { color: var(--accent); }
+
+.wday-total {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text3);
+}
+
+.wday-tasks-box {
+  border: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
+  background: var(--surface);
+  overflow: hidden;
+  flex: 1;
+}
+
+.wday-empty {
+  padding: 24px 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text3);
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+.wtask-row {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  transition: background 0.12s;
+}
+
+.wtask-row:last-child { border-bottom: none; }
+.wtask-row:hover { background: var(--surface2); }
+.wtask-row.done { opacity: 0.55; }
+
+.wtask-check {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid var(--border2);
+  border-radius: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 2px;
+  position: relative;
+  transition: all 0.12s;
+}
+
+.wtask-check:checked {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.wtask-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px; top: 0px;
+  width: 4px; height: 8px;
+  border: 2px solid white;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.wtask-info { flex: 1; }
+
+.wtask-name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.wtask-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wtask-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.wtask-actual-row {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actual-input {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--text2);
+  padding: 2px 7px;
+  width: 70px;
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.actual-input:focus { border-color: var(--accent2); }
+.actual-lbl {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text3);
+}
+
+.var-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+
+.var-over  { background: rgba(232,112,112,0.18); color: var(--red); }
+.var-under { background: rgba(93,187,170,0.18);  color: var(--green); }
+.var-exact { background: rgba(124,158,255,0.18); color: var(--accent); }
+
+/* Nav bar */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+}
+
+.nav-tab {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 12px 20px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.nav-tab:hover { color: var(--text2); }
+.nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Category legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text3);
+}
+
+.legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+/* No tasks planned */
+.no-plan-banner {
+  margin: 60px auto;
+  max-width: 400px;
+  text-align: center;
+}
+
+.no-plan-icon { font-size: 2.5rem; margin-bottom: 12px; }
+.no-plan-text {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.2rem;
+  color: var(--text2);
+  margin-bottom: 8px;
+}
+.no-plan-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text3);
+}
+
+/* Week nav */
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-nav-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+
+.week-nav-btn:hover { color: var(--text); border-color: var(--text2); }
+
+.week-range {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text2);
+  min-width: 140px;
+  text-align: center;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<div class="nav-bar">
+  <button class="nav-tab active" id="tab-plan" onclick="switchTab('plan')">Wochenplanung</button>
+  <button class="nav-tab" id="tab-week" onclick="switchTab('week')">Wochenansicht</button>
+</div>
+
+<!-- ══════════════════ PLAN VIEW ══════════════════ -->
+<div id="plan-view" class="view active">
+  <div class="plan-header">
+    <div class="plan-title-block">
+      <div class="plan-eyebrow">Wochenplanung</div>
+      <div class="plan-title">Aufgaben verteilen</div>
+      <div class="plan-week-label" id="plan-week-label">—</div>
+    </div>
+    <div class="plan-header-actions">
+      <div class="week-nav">
+        <button class="week-nav-btn" onclick="shiftPlanWeek(-1)">‹</button>
+        <span class="week-range" id="plan-week-range"></span>
+        <button class="week-nav-btn" onclick="shiftPlanWeek(1)">›</button>
+      </div>
+      <button class="btn btn-ghost" onclick="clearWeek()">Woche leeren</button>
+      <button class="btn btn-primary" onclick="switchTab('week')">→ Wochenansicht</button>
+    </div>
+  </div>
+
+  <div class="plan-body">
+    <!-- Task pool (left sidebar) -->
+    <div class="task-pool">
+      <div class="pool-title">Aufgaben-Pool</div>
+      <div class="pool-list" id="pool-list"></div>
+    </div>
+
+    <!-- Day columns -->
+    <div class="days-scroll">
+      <div class="days-grid" id="days-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ WEEK VIEW ══════════════════ -->
+<div id="week-view" class="view">
+  <div class="week-header">
+    <div class="week-header-left">
+      <div class="week-eyebrow">Wochenansicht</div>
+      <div class="week-title" id="week-view-title">KW —</div>
+      <div class="week-subtitle" id="week-view-sub">—</div>
+    </div>
+    <div class="week-stats">
+      <div class="wstat">
+        <div class="wstat-val accent" id="ws-total-tasks">0</div>
+        <div class="wstat-lbl">Aufgaben</div>
+      </div>
+      <div class="wstat">
+        <div class="wstat-val" id="ws-done">0 / 0</div>
+        <div class="wstat-lbl">Erledigt</div>
+      </div>
+      <div class="wstat">
+        <div class="wstat-val" id="ws-planned-h">0h</div>
+        <div class="wstat-lbl">Geplant</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="week-body">
+    <div id="no-plan-msg" class="no-plan-banner" style="display:none">
+      <div class="no-plan-icon">📋</div>
+      <div class="no-plan-text">Noch keine Planung für diese Woche</div>
+      <div class="no-plan-sub">Gehe zur Wochenplanung und verteile deine Aufgaben.</div>
+    </div>
+    <div class="week-grid" id="week-grid"></div>
+  </div>
+</div>
+
+<script>
+// ── Task definitions ─────────────────────────────────────────────────────────
+const TASKS = [
+  { id: 'topo_vl',  name: 'Topo Vorarbeiten', cat: 'topo',  color: '#8B6FE8' },
+  { id: 'topo_ha',  name: 'Topo HA',          cat: 'topo',  color: '#8B6FE8' },
+  { id: 'alg_vl',   name: 'AlgTopo VL',       cat: 'alg',   color: '#5D9EE8' },
+  { id: 'alg_ha',   name: 'AlgTop HA',        cat: 'alg',   color: '#5D9EE8' },
+  { id: 'combi_vl', name: 'Combi VL',         cat: 'combi', color: '#E8A05D' },
+  { id: 'combi_ha', name: 'Combi HA',         cat: 'combi', color: '#E8A05D' },
+  { id: 'jp_vid',   name: 'JP Video',         cat: 'jp',    color: '#E8705D' },
+  { id: 'jp_spl',   name: 'JP Spiel',         cat: 'jp',    color: '#E8705D' },
+  { id: 'jp_kke',   name: 'JP KK erstellen',  cat: 'jp',    color: '#E8705D' },
+  { id: 'jp_kkl',   name: 'JP KK lernen',     cat: 'jp',    color: '#E8705D' },
+  { id: 'jp_out',   name: 'JP output üben',   cat: 'jp',    color: '#E8705D' },
+  { id: 'jp_les',   name: 'JP lesen',         cat: 'jp',    color: '#E8705D' },
+  { id: 'bach',     name: 'Bachelor',         cat: 'solo',  color: '#5DBB8E' },
+  { id: 'pykry',    name: 'Python + Krypto',  cat: 'solo',  color: '#5DBB8E' },
+  { id: 'dcbot',    name: 'DC Bot',           cat: 'solo',  color: '#5DBB8E' },
+  { id: 'medi',     name: 'Meditation',       cat: 'med',   color: '#BB8E5D' },
+];
+
+const TASK_MAP = Object.fromEntries(TASKS.map(t => [t.id, t]));
+
+const TIME_OPTIONS = [
+  { val: 15,  label: '15 Min' },
+  { val: 30,  label: '30 Min' },
+  { val: 45,  label: '45 Min' },
+  { val: 60,  label: '1 Std' },
+  { val: 90,  label: '1,5 Std' },
+  { val: 120, label: '2 Std' },
+  { val: 150, label: '2,5 Std' },
+  { val: 180, label: '3 Std' },
+  { val: 240, label: '4 Std' },
+  { val: 300, label: '5 Std' },
+];
+
+const DAYS_DE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const DAYS_FULL = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+
+// Legend categories
+const CATS = [
+  { key: 'topo',  label: 'Topologie',  color: '#8B6FE8' },
+  { key: 'alg',   label: 'AlgTopo',    color: '#5D9EE8' },
+  { key: 'combi', label: 'Combi',      color: '#E8A05D' },
+  { key: 'jp',    label: 'Japanisch',  color: '#E8705D' },
+  { key: 'solo',  label: 'Projekte',   color: '#5DBB8E' },
+  { key: 'med',   label: 'Wellness',   color: '#BB8E5D' },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+// plan[weekKey][dayIndex] = [{taskId, minutes}]
+// done[weekKey][dayIndex][entryIndex] = bool
+// actual[weekKey][dayIndex][entryIndex] = number (minutes)
+let state = { plan: {}, done: {}, actual: {} };
+let planWeekOffset = 0; // 0 = this week
+
+function load() {
+  const s = localStorage.getItem('wochenplaner_v2');
+  if (s) state = JSON.parse(s);
+}
+
+function save() {
+  localStorage.setItem('wochenplaner_v2', JSON.stringify(state));
+}
+
+// ── Week helpers ──────────────────────────────────────────────────────────────
+// Returns Monday of the week containing `date`, then offset by `offsetWeeks`
+function getMondayOfWeek(offsetWeeks = 0) {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun
+  const diff = dow === 0 ? -6 : 1 - dow;
+  const mon = new Date(today);
+  mon.setDate(today.getDate() + diff + offsetWeeks * 7);
+  mon.setHours(0,0,0,0);
+  return mon;
+}
+
+function weekKey(monday) {
+  return monday.toISOString().slice(0,10);
+}
+
+function getWeekDates(monday) {
+  return Array.from({length: 7}, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+function formatDate(d) {
+  return d.getDate() + '.' + (d.getMonth()+1) + '.';
+}
+
+function isToday(d) {
+  const t = new Date();
+  return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
+}
+
+function getKW(monday) {
+  // ISO week number
+  const d = new Date(monday);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const w1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - w1) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+}
+
+function formatMinutes(m) {
+  if (!m) return '—';
+  if (m < 60) return m + ' Min';
+  const h = Math.floor(m/60), r = m%60;
+  return r ? `${h}h ${r}m` : `${h}h`;
+}
+
+// ── Plan state helpers ────────────────────────────────────────────────────────
+function getPlanDayEntries(wk, dayIdx) {
+  if (!state.plan[wk]) state.plan[wk] = {};
+  if (!state.plan[wk][dayIdx]) state.plan[wk][dayIdx] = [];
+  return state.plan[wk][dayIdx];
+}
+
+function addEntry(wk, dayIdx, taskId) {
+  getPlanDayEntries(wk, dayIdx).push({ taskId, minutes: 60 });
+  save();
+}
+
+function removeEntry(wk, dayIdx, idx) {
+  getPlanDayEntries(wk, dayIdx).splice(idx, 1);
+  save();
+}
+
+function setEntryMinutes(wk, dayIdx, idx, val) {
+  getPlanDayEntries(wk, dayIdx)[idx].minutes = val;
+  save();
+}
+
+function getDone(wk, dayIdx, idx) {
+  return !!(state.done[wk] && state.done[wk][dayIdx] && state.done[wk][dayIdx][idx]);
+}
+
+function setDone(wk, dayIdx, idx, val) {
+  if (!state.done[wk]) state.done[wk] = {};
+  if (!state.done[wk][dayIdx]) state.done[wk][dayIdx] = {};
+  state.done[wk][dayIdx][idx] = val;
+  save();
+}
+
+function getActual(wk, dayIdx, idx) {
+  return state.actual?.[wk]?.[dayIdx]?.[idx] ?? '';
+}
+
+function setActual(wk, dayIdx, idx, val) {
+  if (!state.actual[wk]) state.actual[wk] = {};
+  if (!state.actual[wk][dayIdx]) state.actual[wk][dayIdx] = {};
+  state.actual[wk][dayIdx][idx] = val === '' ? '' : Number(val);
+  save();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('plan-view').classList.toggle('active', tab === 'plan');
+  document.getElementById('week-view').classList.toggle('active', tab === 'week');
+  document.getElementById('tab-plan').classList.toggle('active', tab === 'plan');
+  document.getElementById('tab-week').classList.toggle('active', tab === 'week');
+  if (tab === 'week') renderWeekView();
+}
+
+// ── Plan View ─────────────────────────────────────────────────────────────────
+function shiftPlanWeek(delta) {
+  planWeekOffset += delta;
+  renderPlanView();
+}
+
+function renderPlanView() {
+  const monday = getMondayOfWeek(planWeekOffset);
+  const wk = weekKey(monday);
+  const dates = getWeekDates(monday);
+  const kw = getKW(monday);
+
+  document.getElementById('plan-week-label').textContent =
+    `KW ${kw} · ${formatDate(dates[0])} – ${formatDate(dates[6])} ${monday.getFullYear()}`;
+  document.getElementById('plan-week-range').textContent =
+    `KW ${kw} · ${monday.getFullYear()}`;
+
+  // Pool
+  renderPool(wk);
+
+  // Days
+  const grid = document.getElementById('days-grid');
+  grid.innerHTML = '';
+  dates.forEach((d, i) => {
+    const col = document.createElement('div');
+    col.className = 'day-col';
+
+    const entries = getPlanDayEntries(wk, i);
+    const totalMin = entries.reduce((s, e) => s + (e.minutes||0), 0);
+
+    const hdr = document.createElement('div');
+    hdr.className = 'day-header' + (isToday(d) ? ' today' : '');
+    hdr.innerHTML = `
+      <div class="day-name">${DAYS_DE[i]}</div>
+      <div class="day-date">${d.getDate()}</div>
+      <div class="day-total">${totalMin ? formatMinutes(totalMin) : 'Kein Plan'}</div>
+    `;
+
+    const tasks = document.createElement('div');
+    tasks.className = 'day-tasks';
+
+    entries.forEach((entry, idx) => {
+      const t = TASK_MAP[entry.taskId];
+      if (!t) return;
+      const card = document.createElement('div');
+      card.className = 'assigned-card';
+      card.innerHTML = `
+        <div class="assigned-card-top">
+          <div class="card-dot" style="background:${t.color}"></div>
+          <span class="card-name">${t.name}</span>
+          <button class="card-remove" onclick="removeEntryAndRender('${wk}',${i},${idx})">✕</button>
+        </div>
+        <div class="card-time-row">
+          <span class="time-label">Zeit:</span>
+          <select class="time-sel" onchange="setEntryMinutes('${wk}',${i},${idx},+this.value);renderPlanView()">
+            ${TIME_OPTIONS.map(o => `<option value="${o.val}" ${entry.minutes===o.val?'selected':''}>${o.label}</option>`).join('')}
+          </select>
+        </div>
+      `;
+      tasks.appendChild(card);
+    });
+
+    // Add task button / hint
+    const hint = document.createElement('div');
+    hint.className = 'drop-hint';
+    hint.textContent = '+ Aufgabe hinzufügen';
+    hint.onclick = () => openTaskPicker(wk, i);
+    tasks.appendChild(hint);
+
+    col.appendChild(hdr);
+    col.appendChild(tasks);
+    grid.appendChild(col);
+  });
+}
+
+function removeEntryAndRender(wk, dayIdx, idx) {
+  removeEntry(wk, dayIdx, idx);
+  renderPlanView();
+  renderPool(wk); // refresh counts
+}
+
+// ── Pool ──────────────────────────────────────────────────────────────────────
+function renderPool(wk) {
+  const pool = document.getElementById('pool-list');
+  pool.innerHTML = '';
+
+  // Count uses per task across week
+  const uses = {};
+  for (let d = 0; d < 7; d++) {
+    getPlanDayEntries(wk, d).forEach(e => {
+      uses[e.taskId] = (uses[e.taskId] || 0) + 1;
+    });
+  }
+
+  TASKS.forEach(t => {
+    const chip = document.createElement('div');
+    chip.className = 'task-chip' + (uses[t.id] ? ' selected' : '');
+    chip.innerHTML = `
+      <div class="chip-dot" style="background:${t.color}"></div>
+      <span class="chip-name">${t.name}</span>
+      ${uses[t.id] ? `<span class="chip-count">×${uses[t.id]}</span>` : ''}
+    `;
+    chip.onclick = () => { selectedTask = t.id; highlightPool(); };
+    chip.setAttribute('data-task', t.id);
+    pool.appendChild(chip);
+  });
+}
+
+let selectedTask = null;
+
+function highlightPool() {
+  document.querySelectorAll('.task-chip').forEach(c => {
+    c.style.boxShadow = c.getAttribute('data-task') === selectedTask
+      ? '0 0 0 1px var(--accent2)' : '';
+  });
+}
+
+// ── Task Picker Modal (inline quick-select) ───────────────────────────────────
+let pickerTarget = null;
+
+function openTaskPicker(wk, dayIdx) {
+  pickerTarget = { wk, dayIdx };
+  // Remove existing
+  const old = document.getElementById('task-picker');
+  if (old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'task-picker';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);
+    display:flex;align-items:center;justify-content:center;z-index:100;
+  `;
+
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    background:var(--surface);border:1px solid var(--border2);border-radius:12px;
+    width:360px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;
+  `;
+
+  modal.innerHTML = `
+    <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:2px;">Aufgabe hinzufügen</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;">${DAYS_FULL[dayIdx]}</div>
+      </div>
+      <button onclick="document.getElementById('task-picker').remove()" style="background:none;border:none;color:var(--text3);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:3px;" id="picker-list"></div>
+  `;
+
+  overlay.appendChild(modal);
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+
+  const list = document.getElementById('picker-list');
+  TASKS.forEach(t => {
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display:flex;align-items:center;gap:10px;padding:9px 12px;
+      border-radius:6px;cursor:pointer;transition:background 0.1s;
+      border:1px solid transparent;
+    `;
+    row.innerHTML = `
+      <div style="width:8px;height:8px;border-radius:50%;background:${t.color};flex-shrink:0;"></div>
+      <span style="font-size:.83rem;flex:1;">${t.name}</span>
+    `;
+    row.onmouseenter = () => row.style.background = 'var(--surface2)';
+    row.onmouseleave = () => row.style.background = '';
+    row.onclick = () => {
+      addEntry(wk, dayIdx, t.id);
+      overlay.remove();
+      renderPlanView();
+    };
+    list.appendChild(row);
+  });
+}
+
+function clearWeek() {
+  const monday = getMondayOfWeek(planWeekOffset);
+  const wk = weekKey(monday);
+  if (!confirm('Woche leeren?')) return;
+  state.plan[wk] = {};
+  save();
+  renderPlanView();
+}
+
+// ── Week View ─────────────────────────────────────────────────────────────────
+// week view always shows the same week as plan offset
+function renderWeekView() {
+  const monday = getMondayOfWeek(planWeekOffset);
+  const wk = weekKey(monday);
+  const dates = getWeekDates(monday);
+  const kw = getKW(monday);
+
+  document.getElementById('week-view-title').textContent = `KW ${kw}`;
+  document.getElementById('week-view-sub').textContent =
+    `${formatDate(dates[0])} – ${formatDate(dates[6])} ${monday.getFullYear()}`;
+
+  // Legend
+  const leg = document.getElementById('legend');
+  leg.innerHTML = CATS.map(c => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${c.color}"></div>
+      ${c.label}
+    </div>
+  `).join('');
+
+  // Stats
+  let totalTasks = 0, totalDone = 0, totalPlanned = 0;
+  for (let d = 0; d < 7; d++) {
+    const entries = getPlanDayEntries(wk, d);
+    totalTasks += entries.length;
+    entries.forEach((e,i) => {
+      if (getDone(wk, d, i)) totalDone++;
+      totalPlanned += e.minutes || 0;
+    });
+  }
+  document.getElementById('ws-total-tasks').textContent = totalTasks;
+  document.getElementById('ws-done').textContent = `${totalDone} / ${totalTasks}`;
+  document.getElementById('ws-planned-h').textContent = formatMinutes(totalPlanned);
+
+  const grid = document.getElementById('week-grid');
+  const noMsg = document.getElementById('no-plan-msg');
+  grid.innerHTML = '';
+
+  if (totalTasks === 0) {
+    noMsg.style.display = '';
+    return;
+  }
+  noMsg.style.display = 'none';
+
+  dates.forEach((d, dayIdx) => {
+    const entries = getPlanDayEntries(wk, dayIdx);
+    const col = document.createElement('div');
+    col.className = 'wday-col' + (isToday(d) ? ' today' : '');
+
+    const dayTotalPlanned = entries.reduce((s,e) => s + (e.minutes||0), 0);
+
+    col.innerHTML = `
+      <div class="wday-header">
+        <div class="wday-name">${DAYS_DE[dayIdx]}</div>
+        <div class="wday-date">${d.getDate()}</div>
+        <div class="wday-total">${dayTotalPlanned ? formatMinutes(dayTotalPlanned) : 'Frei'}</div>
+      </div>
+    `;
+
+    const box = document.createElement('div');
+    box.className = 'wday-tasks-box';
+
+    if (entries.length === 0) {
+      box.innerHTML = '<div class="wday-empty">Keine Aufgaben</div>';
+    } else {
+      entries.forEach((entry, idx) => {
+        const t = TASK_MAP[entry.taskId];
+        if (!t) return;
+        const done = getDone(wk, dayIdx, idx);
+        const actual = getActual(wk, dayIdx, idx);
+
+        let varHTML = '';
+        if (actual !== '' && entry.minutes) {
+          const diff = Number(actual) - entry.minutes;
+          if (diff > 0)      varHTML = `<span class="var-badge var-over">+${diff}m</span>`;
+          else if (diff < 0) varHTML = `<span class="var-badge var-under">${diff}m</span>`;
+          else               varHTML = `<span class="var-badge var-exact">±0</span>`;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'wtask-row' + (done ? ' done' : '');
+        row.innerHTML = `
+          <input type="checkbox" class="wtask-check" ${done?'checked':''}
+            onchange="setDone('${wk}',${dayIdx},${idx},this.checked);renderWeekView()">
+          <div class="wtask-info">
+            <div class="wtask-name">
+              <div class="wtask-dot" style="background:${t.color}"></div>
+              ${t.name}
+            </div>
+            <div class="wtask-time">Geplant: ${formatMinutes(entry.minutes)}</div>
+            <div class="wtask-actual-row">
+              <span class="actual-lbl">Tatsächlich:</span>
+              <input class="actual-input" type="number" min="0" placeholder="Min"
+                value="${actual}"
+                onchange="setActual('${wk}',${dayIdx},${idx},this.value);renderWeekView()">
+              <span class="actual-lbl">Min</span>
+              ${varHTML}
+            </div>
+          </div>
+        `;
+        box.appendChild(row);
+      });
+    }
+
+    col.appendChild(box);
+    grid.appendChild(col);
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+load();
+renderPlanView();
+</script>
+</body>
+</html>
